@@ -1,0 +1,10 @@
+config.json
+*.jsonl
+recon_capture.json
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+build/
+dist/
+.browser-profile/

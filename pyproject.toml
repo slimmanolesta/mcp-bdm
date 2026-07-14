@@ -1,0 +1,25 @@
+[project]
+name = "mcp-bdm"
+version = "0.1.0"
+description = "Connettore Banca Dati di Merito (bdp.giustizia.it): CLI + MCP sottile su REST frontoffice"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.27",
+    "truststore>=0.9",
+]
+
+[project.optional-dependencies]
+login = ["playwright>=1.40"]
+mcp = ["mcp>=1.2.0"]
+
+[project.scripts]
+bdm = "mcp_bdm.cli:main"
+bdm-mcp = "mcp_bdm.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_bdm"]

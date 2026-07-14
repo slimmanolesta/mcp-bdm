@@ -1,0 +1,10 @@
+{
+  "cookies": [],
+  "authorization": "",
+  "token_expiration": "",
+  "captured_at": "",
+  "user": "",
+  "user_agent": "",
+  "api_base": "https://bdp.giustizia.it/api/bdm/frontoffice",
+  "app_origin": "https://bdp.giustizia.it"
+}
