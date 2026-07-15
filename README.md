@@ -2,6 +2,10 @@
 
 Connettore casalingo per la **Banca Dati di Merito** pubblica del Ministero
 (`bdp.giustizia.it`), pensato per essere pilotato da un assistente AI (Claude).
+
+> **Skill inclusa.** Questo repo contiene la skill Claude **manolesta**
+> (in `skill/manolesta/`), che pilota il connettore `bdm` per cercare e
+> recuperare provvedimenti dalla BDM.
 Backend **REST + GraphQL** (`/api/bdm/frontoffice/...`), autenticazione con **JWT
 di sessione in cookie httpOnly**, depositato dopo il login **CNS** (chiavetta +
 PIN) sul portale B2C del Ministero. La chiavetta serve solo a *ottenere* la
