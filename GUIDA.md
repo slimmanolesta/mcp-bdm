@@ -2,8 +2,6 @@
 
 *Come far cercare a Claude la giurisprudenza di merito sulla Banca Dati del Ministero, e tirartene giù il testo integrale nella tua cartella.*
 
-Materiale per la community **Giuristi AI**.
-
 ---
 
 ## Perché stai leggendo questa guida
@@ -99,4 +97,4 @@ La sessione dura circa **due ore**. Se a un certo punto Claude ti dice che la se
 
 ---
 
-*Manolesta · connettore + skill per Claude · Avv. Stefano Rossi · per «Giuristi AI»*
+*Manolesta · connettore + skill per Claude · Avv. Stefano Rossi*
