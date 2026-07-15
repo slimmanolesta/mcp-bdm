@@ -15,8 +15,10 @@ Forma **ibrida**: un solo motore, due facce.
 
 - **CLI** (`bdm …`) — tirare giù un provvedimento come `.md` pulito in una
   cartella, senza bruciare il contesto del modello.
-- **MCP sottile** (`bdm-mcp`) — `bdm_search` / `bdm_get_provvedimento` /
-  `bdm_check_session` per la consultazione rapida inline.
+- **MCP sottile** (`bdm-mcp`) — per l'uso inline in Claude Desktop:
+  `bdm_check_session`, `bdm_estremi` (ricerca per estremi), `bdm_search`
+  (full-text), `bdm_get_provvedimento` (testo integrale, con salvataggio
+  opzionale in cartella) e `bdm_get_workflow` / `bdm_set_workflow` (onboarding).
 
 ## ⚠️ Non è plug-and-play — è un riferimento «ecco come si fa»
 

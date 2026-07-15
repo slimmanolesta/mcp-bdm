@@ -58,6 +58,51 @@ C:\Tools\mcp-bdm\bdm.bat check
   **`Rinnova-BDM.bat`** (in `C:\Tools\mcp-bdm`): fa il login CNS e salva la sessione
   da sé, **senza riavviare** nulla. Poi riprendi. Non tentare login tu.
 
+## Come guidi il connettore: Claude Desktop (tool MCP) o Claude Code (CLI)
+
+Le istruzioni operative qui sotto usano i **comandi CLI** (`bdm …`). Su **Claude
+Desktop** il connettore gira come **server MCP** e si guida con i tool equivalenti:
+
+| Gesto | Claude Code — CLI | Claude Desktop — tool MCP |
+|---|---|---|
+| Verifica sessione | `bdm.bat check` | `bdm_check_session` |
+| Ricerca per estremi | `bdm.bat estremi --numero … --anno …` | `bdm_estremi(numero, anno, ufficio, tipo)` |
+| Ricerca a tema | `bdm.bat search "…"` | `bdm_search(testo, ufficio, materia, size)` |
+| Testo integrale + salvataggio | `bdm.bat get <id> --dir "<cartella>"` | `bdm_get_provvedimento(id, cartella)` |
+
+Su Desktop non c'è terminale: il salvataggio nella cartella dell'utente avviene
+passando `cartella` a `bdm_get_provvedimento`. Il login CNS resta comunque un passo
+locale (`Rinnova-BDM.bat`): nessun host lo evita.
+
+## Primo avvio — adatta manolesta al modo di lavorare dell'utente
+
+Manolesta non deve partire con le impostazioni di chi l'ha scritta: la **prima
+volta** si adatta a chi la usa. All'inizio di una sessione:
+
+1. Verifica se esiste già la **configurazione di flusso** dell'utente
+   (`manolesta.workflow.json`, accanto al `config.json` del connettore).
+2. **Se esiste** → leggila e rispettala in silenzio (dove salvare, come nominare,
+   biblioteca sì/no). Ricorda in una riga che si può dire *"riconfigura manolesta"*
+   per cambiarla.
+3. **Se NON esiste** (primo avvio) → prima di cercare, fai un **breve questionario**,
+   tono piano (l'utente è un giurista, non un informatico). Quattro domande:
+   - **a) Come organizzi i documenti?** (i) una cartella per pratica/cliente;
+     (ii) un unico archivio di giurisprudenza; (iii) altro — fattelo descrivere.
+   - **b) Dove salvo i provvedimenti che scarico?** Fatti dare la cartella radice
+     (es. `C:\Studio\...`). Se ha scelto "per pratica", spiega che di volta in volta
+     indicherà la sottocartella ("salvala nella pratica *Rossi c. Bianchi*").
+   - **c) Come nomino i file?** Proponi il default — **estremo leggibile**
+     (es. `Trib_Verona_sent_1234-2024.md`); accetta una sua convenzione.
+   - **d) Vuoi il suggerimento-biblioteca?** Quando un provvedimento afferma un
+     principio di portata generale, glielo segnali per un eventuale archivio
+     trasversale (sì/no).
+4. **Salva** le risposte in `manolesta.workflow.json` e conferma in una riga. Da lì
+   in avanti rispetta quelle scelte senza più chiederle.
+
+Quando poi l'utente dice "salvala nella pratica X", combina la **cartella radice**
+configurata con la sottocartella indicata e passala a `bdm_get_provvedimento`
+(o `bdm get --dir` su Code).
+
 ## Passo 0 — Auto-routing: estremi o ricerca ampia?
 
 Classifica la richiesta dell'utente in **una** delle due modalità:

@@ -10,13 +10,14 @@ Avvio stdio per Claude Desktop:  python -m mcp_bdm.server
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
 from . import extract
 from .client import BdmAuthError, BdmClient, BdmError
-from .config import load_config
+from .config import load_config, load_workflow, save_workflow
 
 
 def _fmt(value: Any) -> str:
@@ -80,16 +81,62 @@ def create_server() -> FastMCP:
             await client.aclose()
 
     @mcp.tool()
-    async def bdm_get_provvedimento(id: str, max_chars: int = 20000) -> str:
+    async def bdm_estremi(numero: str, anno: str = "", ufficio: str = "",
+                          tipo: str = "", size: int = 20) -> str:
+        """Ricerca per ESTREMI (uso principale): dato il numero (+ anno, ufficio,
+        tipo) trova il provvedimento specifico. Con numero+anno soli puo' restituire
+        piu' candidati tra uffici diversi, da disambiguare.
+
+        Args:
+            numero: numero del provvedimento (es. "941"). Obbligatorio.
+            anno: anno (es. "2026"); quasi sempre necessario per disambiguare.
+            ufficio: ufficio ESATTO in maiuscolo (es. "TRIBUNALE DI VERONA").
+            tipo: SENTENZA | ORDINANZA | DECRETO.
+            size: massimo candidati.
+        """
+        client = BdmClient(load_config())
+        try:
+            res = await client.search_estremi(
+                numero=numero, anno=anno or None, ufficio=ufficio or None,
+                tipo=tipo or None, size=size,
+            )
+            items = res.get("items") or []
+            compact = [{"id": it.get("id"), "estremo": extract.estremo(it),
+                        "materia": it.get("materia"), "data": it.get("data"),
+                        "data_pubblicazione": it.get("data_pubblicazione")} for it in items]
+            return _fmt({"count": res.get("count"), "mostrati": len(compact), "risultati": compact})
+        except (BdmAuthError, BdmError) as exc:
+            return f"ERRORE: {exc}"
+        finally:
+            await client.aclose()
+
+    @mcp.tool()
+    async def bdm_get_provvedimento(id: str, cartella: str = "", nome: str = "",
+                                    max_chars: int = 20000) -> str:
         """Recupera il testo integrale (pseudonimizzato) di un provvedimento per id.
 
-        Restituisce metadati (estremo, ufficio, date, materia) + testo pulito.
+        Se `cartella` e' indicata, salva un .md pulito (metadati + testo integrale)
+        in quella cartella e restituisce il percorso; altrimenti restituisce metadati
+        + testo (troncato a `max_chars`) nella risposta.
+
+        Args:
+            id: id (hash) del provvedimento.
+            cartella: cartella di destinazione; se valorizzata, salva il .md su disco.
+            nome: nome file senza estensione (default: derivato dall'estremo).
+            max_chars: massimo caratteri restituiti in chat quando NON si salva.
         """
         client = BdmClient(load_config())
         try:
             meta_item = await client.get_meta(id)
             meta = extract.item_meta(meta_item) if meta_item else {"id": id}
             text = extract.normalize_text(await client.get_text(id))
+            if cartella:
+                destdir = Path(cartella)
+                destdir.mkdir(parents=True, exist_ok=True)
+                fname = extract.safe_filename(nome or extract.default_filename(meta_item or {"id": id}))
+                out = destdir / (fname + ".md")
+                out.write_text(extract.provvedimento_md(meta, text), encoding="utf-8")
+                return _fmt({"salvato": str(out), "char": len(text), "estremo": meta.get("estremo")})
             return _fmt({
                 "meta": meta,
                 "testo": text[: max(1000, int(max_chars))],
@@ -100,6 +147,37 @@ def create_server() -> FastMCP:
             return f"ERRORE: {exc}"
         finally:
             await client.aclose()
+
+    @mcp.tool()
+    async def bdm_get_workflow() -> str:
+        """Legge la configurazione di flusso dell'utente (dove salvare, come nominare,
+        biblioteca si'/no). Vuota al PRIMO AVVIO: in quel caso conduci l'onboarding
+        (fai le domande) e poi chiama `bdm_set_workflow`."""
+        wf = load_workflow()
+        if not wf:
+            return _fmt({"_stato": "primo_avvio",
+                         "_nota": "Configurazione assente: conduci l'onboarding, poi salva con bdm_set_workflow."})
+        return _fmt(wf)
+
+    @mcp.tool()
+    async def bdm_set_workflow(organizzazione: str = "", cartella_radice: str = "",
+                               naming: str = "", biblioteca: bool = False) -> str:
+        """Salva la configurazione di flusso dell'utente (fine dell'onboarding).
+
+        Args:
+            organizzazione: "per_pratica" | "archivio_unico" | descrizione libera.
+            cartella_radice: cartella dove salvare i provvedimenti scaricati.
+            naming: convenzione per i nomi file ("" = estremo leggibile di default).
+            biblioteca: se segnalare i provvedimenti di principio generale.
+        """
+        prefs = {
+            "organizzazione": organizzazione,
+            "cartella_radice": cartella_radice,
+            "naming": naming,
+            "biblioteca": bool(biblioteca),
+        }
+        path = save_workflow(prefs)
+        return _fmt({"salvato": str(path), "config": prefs})
 
     return mcp
 

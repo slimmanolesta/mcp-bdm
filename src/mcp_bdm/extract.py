@@ -67,3 +67,23 @@ def default_filename(item: dict[str, Any]) -> str:
         return es
     doc_id = str(item.get("id") or "")
     return f"provvedimento-{doc_id[:12]}" if doc_id else "provvedimento"
+
+
+def safe_filename(s: str) -> str:
+    """Ripulisce una stringa per usarla come nome file (senza estensione)."""
+    s = re.sub(r"[^\w \-.,()]+", "_", s or "", flags=re.UNICODE).strip()
+    return (s or "provvedimento")[:120]
+
+
+def md_header(meta: dict[str, Any]) -> str:
+    """Intestazione YAML-like coi metadati del provvedimento."""
+    lines = ["---"]
+    for k, v in meta.items():
+        lines.append(f"{k}: {v}")
+    lines.append("---")
+    return "\n".join(lines)
+
+
+def provvedimento_md(meta: dict[str, Any], text: str) -> str:
+    """Documento .md completo: intestazione metadati + testo integrale."""
+    return md_header(meta) + "\n\n" + (text or "") + "\n"

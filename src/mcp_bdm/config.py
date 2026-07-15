@@ -169,3 +169,27 @@ def save_session(
     except OSError:
         pass
     return path
+
+
+# --- Configurazione di flusso dell'utente (onboarding manolesta) --------------
+# Non sono segreti: dove salvare i provvedimenti, come nominarli, ecc. Vivono in un
+# file separato dal config.json (che tiene la sessione), accanto ad esso.
+
+def workflow_path() -> Path:
+    return app_dir() / "manolesta.workflow.json"
+
+
+def load_workflow() -> dict[str, Any]:
+    """Preferenze di flusso dell'utente (vuoto = primo avvio, va fatto l'onboarding)."""
+    return _read_json(workflow_path())
+
+
+def save_workflow(prefs: dict[str, Any]) -> Path:
+    """Salva/aggiorna le preferenze di flusso (merge). Ignora i valori stringa vuoti
+    per non sovrascrivere con blank; i booleani vengono sempre scritti."""
+    path = workflow_path()
+    data = _read_json(path)
+    data.update({k: v for k, v in prefs.items() if v != ""})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return path
