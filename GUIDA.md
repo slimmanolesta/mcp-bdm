@@ -34,16 +34,13 @@ Se il setup ti spaventa, tienila così: è un **"ecco come si fa"** che, una vol
 
 ## Preparazione (una volta sola, sul tuo PC)
 
-> Questo è il tratto più tecnico. Lo script di installazione (in arrivo) automatizza quasi tutto; qui trovi comunque i passi, così sai cosa succede.
-
 1. **Scarica** il pacchetto (`manolesta.zip`) e **scompattalo** dove preferisci — per esempio `C:\Tools\manolesta`.
-2. **Installa** il connettore e le sue dipendenze (una riga nel terminale; lo script lo farà per te).
-3. **Primo login CNS**: lancia `Rinnova-BDM.bat`. Si apre il browser sul portale del Ministero, accedi con la tua CNS come faresti a mano. Fatto il login, la finestra si chiude da sola e la sessione resta valida per circa **2 ore**.
-4. **Collega Manolesta a Claude**:
-   - su **Claude Desktop**: registri il connettore una volta (di nuovo, lo script lo prepara per te) e carichi la skill da *Personalizza → Competenze*;
-   - su **Claude Code**: il connettore è già a portata dalla cartella del progetto.
+2. **Chiudi del tutto Claude Desktop**: menu → *Esci* (oppure tasto destro sull'icona vicino all'orologio → *Esci*). Non basta la X. Serve davvero: finché è aperto, Claude Desktop riscrive da sé la propria configurazione e l'installazione andrebbe persa.
+3. **Doppio click su `Setup-Manolesta.bat`.** Fa tutto lui: prepara un ambiente isolato, installa il necessario, scarica il browser per il login e **registra Manolesta dentro Claude Desktop**. La prima volta ci vuole qualche minuto. Se qualcosa manca (per esempio Python), te lo dice in italiano e spiega come rimediare.
+4. **Primo login CNS**: lancia `Rinnova-BDM.bat`. Si apre il browser sul portale del Ministero: accedi con la tua CNS come faresti a mano. Finito l'accesso, la finestra si chiude da sola e la sessione vale circa **2 ore**.
+5. **Riapri Claude Desktop** e carica la skill: *Personalizza → Competenze* → carica la cartella `skill\manolesta` (o il suo `.zip`).
 
-I dettagli tecnici veri e propri (comandi esatti, registrazione del connettore) stanno nel `README.md` del progetto.
+I dettagli tecnici (comandi esatti, cosa viene scritto dove) stanno nel `README.md` del progetto.
 
 ## Il primo avvio: Manolesta ti chiede come lavori
 
