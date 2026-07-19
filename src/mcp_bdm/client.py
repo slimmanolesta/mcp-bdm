@@ -26,12 +26,9 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
-class BdmError(RuntimeError):
-    """Errore di comunicazione o di protocollo con la BDM."""
-
-
-class BdmAuthError(BdmError):
-    """Sessione scaduta o assente: serve un nuovo login (CNS)."""
+# Le eccezioni vivono in errors.py (anche config.py deve poterle sollevare senza
+# creare un ciclo di import). Ri-esportate qui per non rompere gli import esistenti.
+from .errors import BdmAuthError, BdmError  # noqa: F401  (re-export)
 
 
 class BdmClient:

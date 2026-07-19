@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import re
 import sys
 from pathlib import Path
 
@@ -17,17 +16,20 @@ from .client import BdmAuthError, BdmClient, BdmError
 from .config import load_config
 
 
-def _safe_name(s: str) -> str:
-    s = re.sub(r"[^\w \-.,()]+", "_", s, flags=re.UNICODE).strip()
-    return (s or "provvedimento")[:120]
+def _force_utf8_stdio() -> None:
+    """Forza UTF-8 su stdout/stderr.
 
-
-def _md_header(meta: dict) -> str:
-    lines = ["---"]
-    for k, v in meta.items():
-        lines.append(f"{k}: {v}")
-    lines.append("---")
-    return "\n".join(lines)
+    Su Windows, quando l'output e' rediretto o in pipe (e' cosi' che ci invoca un
+    agente), Python NON usa la console ma ripiega sul code page ANSI (cp1252):
+    stampare un testo che contiene caratteri fuori da cp1252 - p.es. le legature
+    fi/fl tipiche dei PDF - fa fallire il comando a meta' documento con
+    UnicodeEncodeError. A console non si vede mai, in pipe si'.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
 
 
 async def _get(args) -> int:
@@ -36,15 +38,15 @@ async def _get(args) -> int:
         meta_item = await client.get_meta(args.id)
         meta = extract.item_meta(meta_item) if meta_item else {"id": args.id}
         text = extract.normalize_text(await client.get_text(args.id))
-        fname = args.name or _safe_name(extract.default_filename(meta_item or {"id": args.id}))
+        fname = extract.safe_filename(args.name or extract.default_filename(meta_item or {"id": args.id}))
         if args.dir:
             destdir = Path(args.dir)
             destdir.mkdir(parents=True, exist_ok=True)
             out = destdir / (fname + ".md")
-            out.write_text(_md_header(meta) + "\n\n" + text + "\n", encoding="utf-8")
+            out.write_text(extract.provvedimento_md(meta, text), encoding="utf-8")
             print(f"SALVATO {out}  ({len(text)} char)")
         else:
-            print(_md_header(meta))
+            print(extract.md_header(meta))
             print()
             print(text[: args.max_chars])
         return 0
@@ -97,14 +99,14 @@ async def _estremi(args) -> int:
             print("-> un solo risultato: ne recupero il testo.")
             it = items[0]
             text = extract.normalize_text(await client.get_text(it["id"]))
-            fname = args.name or _safe_name(extract.default_filename(it))
+            fname = extract.safe_filename(args.name or extract.default_filename(it))
             if args.dir:
                 destdir = Path(args.dir); destdir.mkdir(parents=True, exist_ok=True)
                 out = destdir / (fname + ".md")
-                out.write_text(_md_header(extract.item_meta(it)) + "\n\n" + text + "\n", encoding="utf-8")
+                out.write_text(extract.provvedimento_md(extract.item_meta(it), text), encoding="utf-8")
                 print(f"SALVATO {out}  ({len(text)} char)")
             else:
-                print(); print(_md_header(extract.item_meta(it))); print(); print(text[: args.max_chars])
+                print(); print(extract.md_header(extract.item_meta(it))); print(); print(text[: args.max_chars])
         elif (args.get or args.dir):
             print("Più di un risultato: affina con --ufficio/--tipo, poi 'bdm get <id>'.")
         return 0
@@ -146,6 +148,7 @@ async def _check(args) -> int:
 
 
 def main(argv=None) -> int:
+    _force_utf8_stdio()
     parser = argparse.ArgumentParser(prog="bdm", description="Connettore Banca Dati di Merito (bdp.giustizia.it).")
     sub = parser.add_subparsers(dest="cmd", required=True)
 

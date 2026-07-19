@@ -5,7 +5,7 @@ voce `mcpServers.manolesta`, lasciando intatti gli altri server e ogni altra chi
 
 ATTENZIONE: Claude Desktop riscrive da se' questo file MENTRE e' in esecuzione
 (osservato dal vivo: il file cambia tra un backup e la rilettura un istante dopo).
-Va quindi lanciato ad app CHIUSA. `Setup-Manolesta.ps1` lo verifica prima di
+Va quindi lanciato ad app CHIUSA. `setup_manolesta.py` lo verifica prima di
 arrivare qui; se lanci questo script a mano, chiudi prima Claude Desktop.
 
 Uso:

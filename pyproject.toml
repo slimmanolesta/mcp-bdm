@@ -12,6 +12,7 @@ dependencies = [
 [project.optional-dependencies]
 login = ["playwright>=1.40"]
 mcp = ["mcp>=1.2.0"]
+test = ["pytest>=8.0"]
 
 [project.scripts]
 bdm = "mcp_bdm.cli:main"

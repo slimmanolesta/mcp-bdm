@@ -27,6 +27,51 @@ def _fmt(value: Any) -> str:
         return str(value)
 
 
+# Tetto ai caratteri restituiti in chat: oltre, si salva su file. Serve a impedire
+# che il modello si spari in contesto una sentenza di 150 pagine chiedendo un
+# max_chars enorme (i parametri dei tool li sceglie lui).
+MAX_CHARS_CEILING = 50_000
+
+
+def _resolve_dest(cartella: str) -> tuple[Path | None, str]:
+    """Risolve la cartella di destinazione, confinandola alla radice configurata
+    nell'onboarding (`cartella_radice`), se c'e'.
+
+    I parametri dei tool arrivano da un modello: senza confinamento una cartella
+    allucinata puo' far scrivere ovunque sul disco. Un percorso relativo viene
+    risolto DENTRO la radice, cosi' "Rossi c. Bianchi" finisce dove deve.
+    """
+    wf = load_workflow() or {}
+    root = wf.get("cartella_radice") or ""
+    dest = Path(cartella).expanduser()
+    if not root:
+        return dest, ""
+    try:
+        root_p = Path(root).expanduser().resolve()
+        dest_p = dest.resolve() if dest.is_absolute() else (root_p / dest).resolve()
+    except (OSError, ValueError):
+        return None, f"percorso non valido: {cartella!r}"
+    if dest_p != root_p and root_p not in dest_p.parents:
+        return None, (f"la cartella richiesta ({dest_p}) e' fuori dalla radice configurata "
+                      f"({root_p}). Indica una sottocartella della radice, oppure cambia "
+                      f"la radice con bdm_set_workflow.")
+    return dest_p, ""
+
+
+def _unique_path(destdir: Path, fname: str) -> Path:
+    """Percorso .md che non calpesta un file esistente.
+
+    Senza questo, un nome allucinato dal modello (es. "_SCHEDA") sovrascriverebbe in
+    silenzio un file dell'utente, per giunta su una cartella sincronizzata.
+    """
+    out = destdir / (fname + ".md")
+    n = 2
+    while out.exists():
+        out = destdir / f"{fname} ({n}).md"
+        n += 1
+    return out
+
+
 def create_server() -> FastMCP:
     mcp = FastMCP(
         name="mcp_bdm",
@@ -123,24 +168,31 @@ def create_server() -> FastMCP:
             id: id (hash) del provvedimento.
             cartella: cartella di destinazione; se valorizzata, salva il .md su disco.
             nome: nome file senza estensione (default: derivato dall'estremo).
-            max_chars: massimo caratteri restituiti in chat quando NON si salva.
+            max_chars: caratteri restituiti in chat quando NON si salva
+                (tetto massimo 50000: per testi piu' lunghi usa `cartella`).
         """
+        destdir = None
+        if cartella:
+            destdir, errore = _resolve_dest(cartella)
+            if errore:
+                return f"ERRORE: {errore}"
         client = BdmClient(load_config())
         try:
             meta_item = await client.get_meta(id)
             meta = extract.item_meta(meta_item) if meta_item else {"id": id}
             text = extract.normalize_text(await client.get_text(id))
-            if cartella:
-                destdir = Path(cartella)
+            if destdir is not None:
                 destdir.mkdir(parents=True, exist_ok=True)
                 fname = extract.safe_filename(nome or extract.default_filename(meta_item or {"id": id}))
-                out = destdir / (fname + ".md")
+                out = _unique_path(destdir, fname)
                 out.write_text(extract.provvedimento_md(meta, text), encoding="utf-8")
                 return _fmt({"salvato": str(out), "char": len(text), "estremo": meta.get("estremo")})
+            limite = min(max(1000, int(max_chars)), MAX_CHARS_CEILING)
             return _fmt({
                 "meta": meta,
-                "testo": text[: max(1000, int(max_chars))],
-                "troncato": len(text) > max_chars,
+                "testo": text[:limite],
+                "troncato": len(text) > limite,
+                "limite_applicato": limite,
                 "char_totali": len(text),
             })
         except (BdmAuthError, BdmError) as exc:
@@ -160,24 +212,31 @@ def create_server() -> FastMCP:
         return _fmt(wf)
 
     @mcp.tool()
-    async def bdm_set_workflow(organizzazione: str = "", cartella_radice: str = "",
-                               naming: str = "", biblioteca: bool = False) -> str:
+    async def bdm_set_workflow(organizzazione: str | None = None,
+                               cartella_radice: str | None = None,
+                               naming: str | None = None,
+                               biblioteca: bool | None = None) -> str:
         """Salva la configurazione di flusso dell'utente (fine dell'onboarding).
+
+        Aggiornamento PARZIALE: passa solo i campi da cambiare, gli altri restano
+        come sono. NON passare valori "di comodo" per i campi che non stai
+        cambiando, altrimenti sovrascrivi le scelte gia' fatte dall'utente.
 
         Args:
             organizzazione: "per_pratica" | "archivio_unico" | descrizione libera.
-            cartella_radice: cartella dove salvare i provvedimenti scaricati.
-            naming: convenzione per i nomi file ("" = estremo leggibile di default).
+            cartella_radice: cartella radice dove salvare i provvedimenti. Vincola
+                anche dove `bdm_get_provvedimento` puo' scrivere.
+            naming: convenzione per i nomi file ("estremo" = default leggibile).
             biblioteca: se segnalare i provvedimenti di principio generale.
         """
         prefs = {
             "organizzazione": organizzazione,
             "cartella_radice": cartella_radice,
             "naming": naming,
-            "biblioteca": bool(biblioteca),
+            "biblioteca": biblioteca,
         }
         path = save_workflow(prefs)
-        return _fmt({"salvato": str(path), "config": prefs})
+        return _fmt({"salvato": str(path), "config": load_workflow()})
 
     return mcp
 

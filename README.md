@@ -58,10 +58,12 @@ Nucleo CLI verificato **end-to-end in rete** (`check`, `search`, `get`, `estremi
   la finestra; a scadenza serve il re-login CNS (`Rinnova-BDM.bat`).
 
 **Residui (follow-up, non bloccanti):**
-- Registrazione MCP in `claude_desktop_config.json` + allowlist. Il **CLI funziona
-  già** senza registrazione.
 - Rifinire i nomi-campo delle faccette in `q` (`UFFICIO`/`MATERIA` maiuscoli sono
   ipotesi da confermare; il full-text `anonymized_testo` è verificato).
+- `DATA_COOKIE_NAMES` è un *allowlist* ricavato da una singola cattura: se il sito
+  aggiunge o rinomina un cookie di sessione, il replay fallisce con un 401 subito
+  dopo un login riuscito. Va invertito in denylist (tenere tutto il dominio, scartare
+  i cookie B2C col nome malformato).
 
 ## Uso
 
@@ -86,7 +88,11 @@ python -m mcp_bdm get <id> --dir "C:\percorso\alla\cartella"
 
 ## Config
 
-La sessione vive in `config.json` (fuori da git, permessi 0600), creato da `login`:
+La sessione vive in `config.json`, creato da `login`, sotto `%LOCALAPPDATA%\manolesta`
+(override con `BDM_HOME`) — **fuori dall'albero del codice**: il codice puo' stare in
+una cartella condivisa, il JWT no. Il file viene ristretto al solo utente corrente
+via `icacls`; su Windows `chmod(0o600)` **non** basta, perche' tocca solo
+l'attributo di sola lettura e non le ACL. Contiene:
 il **cookie jar** catturato (col JWT httpOnly), `exp`, l'utente (per display). Il
 client manda ai data-endpoint solo i cookie utili (`DATA_COOKIE_NAMES`), non i
 cookie B2C/SSO. Override via `BDM_API_BASE`, `BDM_HOME`, ecc.; profilo di login via
@@ -99,7 +105,8 @@ Per l'MCP: `mcp`.
 
 ## Note di sicurezza e di uso
 
-Il JWT è un segreto (file 0600, mai stampato per intero). La BDM è pubblica e
+Il JWT è un segreto: vive fuori dall'albero del codice, con ACL ristretta al solo
+utente corrente, e non viene mai stampato per intero. La BDM è pubblica e
 gratuita, i testi sono **pseudonimizzati** all'origine. Uso previsto =
 **consultazione mirata con la propria sessione**, come farebbe un umano: **niente
 scraping massivo**. Copre la sola giurisprudenza **civile di merito** (Tribunali e

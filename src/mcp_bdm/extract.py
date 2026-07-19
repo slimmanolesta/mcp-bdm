@@ -33,6 +33,28 @@ def normalize_text(t: str) -> str:
     return t.strip()
 
 
+# In una citazione forense le preposizioni restano minuscole: "Corte di Appello di
+# Bari", non "Corte Di Appello Di Bari" (che e' quel che produce str.title()).
+_MINUSCOLE = frozenset({"d", "di", "de", "del", "dello", "della", "dei", "degli",
+                        "delle", "da", "dal", "e", "in", "su", "per", "a"})
+
+
+def _titolo_ufficio(uff: str) -> str:
+    """Titlecase da citazione: iniziali maiuscole, preposizioni minuscole."""
+    parole = uff.split()
+    out = []
+    for i, p in enumerate(parole):
+        if "'" in p:  # d'Appello, dell'Aquila
+            testa, _, coda = p.partition("'")
+            testa_l = testa.lower()
+            testa_f = testa_l if (i and testa_l in _MINUSCOLE) else testa_l.capitalize()
+            out.append(f"{testa_f}'{coda.capitalize()}")
+            continue
+        pl = p.lower()
+        out.append(pl if (i and pl in _MINUSCOLE) else pl.capitalize())
+    return " ".join(out)
+
+
 def estremo(item: dict[str, Any]) -> str:
     """Citazione leggibile: 'Tribunale di Locri, sent. 243/2023'."""
     if not isinstance(item, dict):
@@ -43,7 +65,7 @@ def estremo(item: dict[str, Any]) -> str:
     num = _clean(item.get("numero_provvedimento"))
     anno = _clean(item.get("anno_provvedimento"))
     coda = f"{tabbr} {num}/{anno}".strip() if num else ""
-    parts = [p for p in (uff.title() if uff.isupper() else uff, coda) if p]
+    parts = [p for p in (_titolo_ufficio(uff) if uff.isupper() else uff, coda) if p]
     return ", ".join(parts)
 
 
@@ -61,10 +83,15 @@ def item_meta(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def default_filename(item: dict[str, Any]) -> str:
-    """Nome file intelligibile: preferisce l'estremo, poi l'id troncato."""
+    """Nome file intelligibile: preferisce l'estremo, poi l'id troncato.
+
+    La barra di "1234/2024" diventa un trattino QUI: se la lasciassimo passare,
+    safe_filename la trasformerebbe in "_" e il nome leggerebbe "1234_2024",
+    che sembra un refuso invece di un numero di provvedimento.
+    """
     es = estremo(item)
     if es:
-        return es
+        return es.replace("/", "-")
     doc_id = str(item.get("id") or "")
     return f"provvedimento-{doc_id[:12]}" if doc_id else "provvedimento"
 
