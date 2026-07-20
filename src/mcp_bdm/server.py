@@ -126,27 +126,44 @@ def create_server() -> FastMCP:
             await client.aclose()
 
     @mcp.tool()
-    async def bdm_estremi(numero: str, anno: str = "", ufficio: str = "",
-                          tipo: str = "", size: int = 20) -> str:
-        """Ricerca per ESTREMI (uso principale): dato il numero (+ anno, ufficio,
-        tipo) trova il provvedimento specifico. Con numero+anno soli puo' restituire
-        piu' candidati tra uffici diversi, da disambiguare.
+    async def bdm_estremi(numero: str = "", anno: str = "", ufficio: str = "",
+                          tipo: str = "", numero_ruolo: str = "", anno_ruolo: str = "",
+                          size: int = 20) -> str:
+        """Ricerca per ESTREMI (uso principale): trova un provvedimento specifico.
+
+        DUE VIE D'INGRESSO. Scegli in base a cio' che l'utente ha davvero:
+
+        1. **Numero di provvedimento** (+ anno, ufficio, tipo) — la via normale,
+           quando la citazione da' "sent. n. 1234/2024".
+        2. **Numero di RUOLO (R.G.)** + anno di ruolo — usala quando l'utente
+           conosce il R.G. ma NON il numero di pubblicazione. Succede spesso: una
+           sentenza citata in un atto di controparte, o un PDF avuto da altra
+           fonte, riportano il R.G. ("R.G. 1997/2022") e non il numero. R.G. +
+           ufficio e' molto selettivo. E' anche il modo per RISALIRE al numero di
+           pubblicazione quando manca.
+
+        Serve almeno una delle due (numero oppure numero_ruolo); le vie si possono
+        anche combinare.
 
         Args:
-            numero: numero del provvedimento (es. "941"). Obbligatorio.
-            anno: anno (es. "2026"); quasi sempre necessario per disambiguare.
+            numero: numero del provvedimento (es. "1234").
+            anno: anno del provvedimento (es. "2024").
             ufficio: ufficio ESATTO in maiuscolo (es. "TRIBUNALE DI VERONA").
             tipo: SENTENZA | ORDINANZA | DECRETO.
+            numero_ruolo: numero di ruolo generale / R.G. (es. "1997").
+            anno_ruolo: anno del ruolo (es. "2022").
             size: massimo candidati.
         """
         client = BdmClient(load_config())
         try:
             res = await client.search_estremi(
-                numero=numero, anno=anno or None, ufficio=ufficio or None,
-                tipo=tipo or None, size=size,
+                numero=numero or None, anno=anno or None, ufficio=ufficio or None,
+                tipo=tipo or None, numero_ruolo=numero_ruolo or None,
+                anno_ruolo=anno_ruolo or None, size=size,
             )
             items = res.get("items") or []
             compact = [{"id": it.get("id"), "estremo": extract.estremo(it),
+                        "ruolo": f"{it.get('numero_ruolo')}/{it.get('anno_ruolo')}",
                         "materia": it.get("materia"), "data": it.get("data"),
                         "data_pubblicazione": it.get("data_pubblicazione")} for it in items]
             return _fmt({"count": res.get("count"), "mostrati": len(compact), "risultati": compact})

@@ -81,17 +81,25 @@ async def _search(args) -> int:
 
 
 async def _estremi(args) -> int:
+    # Controllo qui e non in argparse: --numero e --numero-ruolo sono due vie
+    # alternative, e senza nessuna delle due la ricerca scivolerebbe in silenzio
+    # sul fallback "ultimi provvedimenti depositati", che non e' cio' che si voleva.
+    if not (args.numero or args.numero_ruolo):
+        print("ERRORE: serve --numero (del provvedimento) oppure --numero-ruolo (R.G.).",
+              file=sys.stderr)
+        return 2
     client = BdmClient(load_config())
     try:
         res = await client.search_estremi(
-            numero=args.numero, anno=args.anno or None,
+            numero=args.numero or None, anno=args.anno or None,
+            numero_ruolo=args.numero_ruolo or None, anno_ruolo=args.anno_ruolo or None,
             ufficio=args.ufficio or None, tipo=args.tipo or None, size=args.size,
         )
         items = res.get("items") or []
         print(f"count totale: {res.get('count')} — mostro {len(items)}:")
         for i, it in enumerate(items, 1):
             print(f"  [{i}] id={it.get('id')}")
-            print(f"       {extract.estremo(it)}  (del {it.get('data') or ''}, pubbl. {it.get('data_pubblicazione') or ''})  [{it.get('materia') or ''}]")
+            print(f"       {extract.estremo(it)}  (R.G. {it.get('numero_ruolo') or '?'}/{it.get('anno_ruolo') or '?'}, del {it.get('data') or ''}, pubbl. {it.get('data_pubblicazione') or ''})  [{it.get('materia') or ''}]")
         if not items:
             print("(nessun risultato per gli estremi indicati)")
             return 1
@@ -171,9 +179,12 @@ def main(argv=None) -> int:
     p_search.add_argument("--size", type=int, default=10)
     p_search.set_defaults(func=lambda a: asyncio.run(_search(a)))
 
-    p_est = sub.add_parser("estremi", help="Ricerca per estremi (numero/anno/ufficio/tipo) — caso principale.")
-    p_est.add_argument("--numero", required=True, help="Numero del provvedimento, es. 941.")
+    p_est = sub.add_parser("estremi", help="Ricerca per estremi (numero/anno/ufficio/tipo, oppure numero di ruolo) — caso principale.")
+    p_est.add_argument("--numero", default="", help="Numero del provvedimento, es. 941.")
     p_est.add_argument("--anno", default="", help="Anno del provvedimento, es. 2026.")
+    p_est.add_argument("--numero-ruolo", default="", dest="numero_ruolo",
+                       help="Numero di ruolo (R.G.), es. 1997. Da usare quando si ha il R.G. ma NON il numero di pubblicazione.")
+    p_est.add_argument("--anno-ruolo", default="", dest="anno_ruolo", help="Anno del ruolo, es. 2022.")
     p_est.add_argument("--ufficio", default="", help="Ufficio esatto, es. 'TRIBUNALE DI VERONA'.")
     p_est.add_argument("--tipo", default="", help="SENTENZA | ORDINANZA | DECRETO.")
     p_est.add_argument("--size", type=int, default=20)

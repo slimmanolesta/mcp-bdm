@@ -147,6 +147,32 @@ def test_le_virgolette_non_possono_iniettare_criteri():
     assert q.count('"') % 2 == 0
 
 
+# --- ricerca per estremi: le due vie d'ingresso ------------------------------
+
+def test_estremi_senza_criteri_e_un_errore_non_una_ricerca_a_vuoto():
+    """Senza numero NE' numero di ruolo la query resterebbe vuota e la ricerca
+    scivolerebbe sul fallback 'ultimi depositati': un risultato plausibile ma
+    sbagliato, il peggior tipo di bug. Deve essere un errore esplicito."""
+    import asyncio
+
+    from mcp_bdm.client import BdmClient
+
+    c = BdmClient(cfg.BdmConfig())
+    with pytest.raises(BdmError):
+        asyncio.run(c.search_estremi(anno="2026", ufficio="TRIBUNALE DI VERONA"))
+
+
+def test_la_query_per_numero_di_ruolo_si_costruisce():
+    """La via del R.G. e' l'unica praticabile quando manca il numero di
+    pubblicazione (es. sentenza citata in un atto altrui): e' cosi' che si e'
+    trovata App. Firenze 6/2026, nota solo per R.G. 1997/2022."""
+    from mcp_bdm import endpoints
+
+    q = endpoints.build_q_expression(numero_ruolo=1997, anno_ruolo=2022,
+                                     ufficio="CORTE DI APPELLO DI FIRENZE")
+    assert "numero_ruolo" in q and "anno_ruolo" in q and "ufficio" in q
+
+
 # --- selezione dei cookie ----------------------------------------------------
 
 def _jar():

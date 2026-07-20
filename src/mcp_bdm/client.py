@@ -162,19 +162,34 @@ class BdmClient:
 
     async def search_estremi(
         self,
-        numero: str | int,
+        numero: str | int | None = None,
         anno: str | int | None = None,
         *,
+        numero_ruolo: str | int | None = None,
+        anno_ruolo: str | int | None = None,
         ufficio: str | None = None,
         tipo: str | None = None,
         size: int = 20,
     ) -> dict[str, Any]:
-        """Ricerca per estremi (il caso d'uso principale): dato numero (+ anno,
-        ufficio, tipo) trova il provvedimento specifico. Ordina per data, cosi'
-        numero+anno da soli restituiscono i candidati da disambiguare per ufficio."""
+        """Ricerca per estremi (il caso d'uso principale). Ordina per data, cosi'
+        numero+anno da soli restituiscono i candidati da disambiguare per ufficio.
+
+        Due vie d'ingresso, entrambe valide:
+        - **numero di provvedimento** (+ anno/ufficio/tipo): la via normale;
+        - **numero di RUOLO** (R.G.) + anno di ruolo: l'unica praticabile quando si
+          conosce il R.G. ma NON il numero di pubblicazione. Caso tutt'altro che
+          raro: una sentenza citata in un atto altrui, o un PDF avuto da altra
+          fonte, spesso riportano il R.G. e non il numero. R.G. + ufficio e' molto
+          selettivo (in pratica identifica il provvedimento).
+        """
+        if not (numero or numero_ruolo):
+            raise BdmError(
+                "ricerca per estremi: serve almeno il numero del provvedimento "
+                "oppure il numero di ruolo (R.G.)."
+            )
         return await self.search(
-            numero=numero, anno=anno, ufficio=ufficio, tipo=tipo,
-            size=size, sort_field="data", sort_order="desc",
+            numero=numero, anno=anno, numero_ruolo=numero_ruolo, anno_ruolo=anno_ruolo,
+            ufficio=ufficio, tipo=tipo, size=size, sort_field="data", sort_order="desc",
         )
 
     async def get_text(self, doc_id: str | int) -> str:

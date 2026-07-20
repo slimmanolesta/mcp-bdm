@@ -8,6 +8,8 @@
 
 La giurisprudenza di **merito** — le sentenze e le ordinanze dei Tribunali e delle Corti d'Appello — è spesso ciò che ti serve davvero: è lì che vedi come *quel* giudice, su *quel* tema, decide in concreto. Il Ministero la mette a disposizione gratis, in un portale pubblico. Ma consultarla è scomodo: cerchi, filtri, apri un provvedimento alla volta, copi-incolli. Un lavoro meccanico che ti mangia tempo e attenzione.
 
+C'è un motivo più forte del semplice fastidio. Mi è capitato di trovare, citata in un atto di controparte, una sentenza di merito che sulle banche dati a pagamento non c'era: né su OneLegale, né su De Jure. Il dubbio, in quei casi, è sempre lo stesso — è una citazione buona, o è un'allucinazione che si propaga di ricerca in ricerca? Non era un'allucinazione: stava sulla Banca Dati di Merito, e l'ho trovata in un minuto. Il merito, spesso, sta lì dove altrove non c'è.
+
 **Manolesta** insegna a Claude a farlo per te: gli dici cosa cerchi (un numero di sentenza, oppure un tema), lui la trova sulla banca dati e ti **scarica l'integrale** dove hai deciso tu — pronto da leggere, riassumere o citare.
 
 ## Cos'è la Banca Dati di Merito (BDM)

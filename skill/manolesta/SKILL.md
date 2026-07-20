@@ -120,9 +120,21 @@ passando anche i filtri.
 
 ## Passo 1 — Ricerca per estremi
 
-`bdm_estremi(numero, anno, ufficio, tipo)`
+`bdm_estremi(numero, anno, ufficio, tipo, numero_ruolo, anno_ruolo)`
 
-- **`numero`** obbligatorio; **`anno`** quasi sempre necessario per disambiguare.
+**Due vie d'ingresso.** Guarda cosa l'utente ha davvero in mano:
+
+- **numero di provvedimento** (+ anno/ufficio/tipo) — la via normale, quando la
+  citazione dà *"sent. n. 1234/2024"*;
+- **numero di RUOLO (R.G.)** + anno di ruolo — quando conosce il **R.G. ma non il
+  numero di pubblicazione**. Capita spesso: una sentenza citata in un atto di
+  controparte, o un PDF avuto da altra fonte, riportano *"R.G. 1997/2022"* e non il
+  numero. R.G. + ufficio è molto selettivo. **È anche il modo per risalire al numero
+  di pubblicazione quando manca**, cosa che serve prima di citare in un atto.
+
+Serve almeno una delle due vie; si possono anche combinare.
+
+- **`numero`** oppure **`numero_ruolo`**: almeno uno dei due. **`anno`** quasi sempre necessario per disambiguare.
 - **`tipo`**: `SENTENZA` | `ORDINANZA` | `DECRETO` (maiuscolo).
 - **`ufficio`**: va scritto **ESATTO** come in BDM (tutto maiuscolo, per esteso):
   es. `TRIBUNALE DI VERONA`, `CORTE DI APPELLO DI VENEZIA`. Normalizza le
@@ -212,7 +224,7 @@ volta; non darla per scontata):
 | Tool | Comando equivalente |
 |---|---|
 | `bdm_check_session` | `bdm.bat check` |
-| `bdm_estremi` | `bdm.bat estremi --numero <N> [--anno <A>] [--ufficio "<U>"] [--tipo <T>]` |
+| `bdm_estremi` | `bdm.bat estremi --numero <N> [--anno <A>] [--ufficio "<U>"] [--tipo <T>]`<br>oppure per ruolo: `--numero-ruolo <RG> --anno-ruolo <A> [--ufficio "<U>"]` |
 | `bdm_search` | `bdm.bat search "<testo>" [--ufficio "<U>"] [--materia "<M>"] [--size 20]` |
 | `bdm_get_provvedimento` | `bdm.bat get <id> --dir "<cartella>" [--name "<nome>"]` |
 | `bdm_get_workflow` / `bdm_set_workflow` | *(nessun equivalente CLI)* |
