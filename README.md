@@ -57,13 +57,18 @@ Nucleo CLI verificato **end-to-end in rete** (`check`, `search`, `get`, `estremi
 - **Durata sessione ~120 min**: captured_at→exp = 2 ore. Il replay regge per tutta
   la finestra; a scadenza serve il re-login CNS (`Rinnova-BDM.bat`).
 
+- **Selezione dei cookie = denylist.** Si mandano i cookie del dominio dei dati,
+  scartando per *forma* quelli del portale B2C (nomi malformati col `:`, che
+  romperebbero l'header) e i domini estranei. In precedenza era un *allowlist*
+  ricavato da una singola cattura: bastava che il sito aggiungesse o rinominasse un
+  cookie perché il replay fallisse con un 401 **subito dopo un login riuscito**, in
+  loop e senza nulla, in nessun output, che nominasse i cookie. Ora `bdm check`
+  stampa i **nomi** dei cookie inviati (mai i valori), e `BDM_COOKIE_NAMES` permette
+  di forzare la selezione a mano.
+
 **Residui (follow-up, non bloccanti):**
 - Rifinire i nomi-campo delle faccette in `q` (`UFFICIO`/`MATERIA` maiuscoli sono
   ipotesi da confermare; il full-text `anonymized_testo` è verificato).
-- `DATA_COOKIE_NAMES` è un *allowlist* ricavato da una singola cattura: se il sito
-  aggiunge o rinomina un cookie di sessione, il replay fallisce con un 401 subito
-  dopo un login riuscito. Va invertito in denylist (tenere tutto il dominio, scartare
-  i cookie B2C col nome malformato).
 
 ## Uso
 

@@ -6,7 +6,7 @@ Contratto VERIFICATO dal vivo (14.7.2026). Dettagli non ovvi:
 - TLS via trust store di Windows (`truststore`): certifi non ha la CA della PA.
 - I data-endpoint vogliono una richiesta "da browser": UA Chrome reale + header
   `Sec-Fetch-*`, `Origin` solo sui POST (mai sui GET same-origin), e i soli cookie
-  dati (DATA_COOKIE_NAMES). Con la sessione scaduta rispondono 401 (corpo vuoto o
+  dati (vedi `BdmConfig.data_cookie_names`). Con la sessione scaduta rispondono 401 (corpo vuoto o
   "jwt non presente"); ci mappiamo BdmAuthError.
 - Ricerca = GraphQL `searchProvvedimento`; testo integrale = REST
   `provvedimento/{id}/document/testo` (testo piano, gia' pseudonimizzato).
@@ -106,7 +106,14 @@ class BdmClient:
         """Verifica VERA: una chiamata dati reale (user/current torna 200 anche da
         non loggato, quindi non basta). Usa `materia?area` come sonda leggera."""
         await self._get(endpoints.EP_MATERIA + f"?area={AREA_DEFAULT}")
-        return {"ok": True, "utente": self._config.user, "exp": self._config.token_expiration}
+        return {
+            "ok": True,
+            "utente": self._config.user,
+            "exp": self._config.token_expiration,
+            # Solo i NOMI (mai i valori): se un giorno il replay smettesse di
+            # funzionare, questo e' il primo dato da guardare.
+            "cookie_inviati": self._config.data_cookie_names(),
+        }
 
     # --- Ricerca --------------------------------------------------------------
     async def search(

@@ -136,9 +136,17 @@ async def _check(args) -> int:
     try:
         info = await client.check_session()
         print(f"Sessione OK — utente: {info.get('utente')} | exp: {info.get('exp')}")
+        inviati = info.get("cookie_inviati") or []
+        print(f"Cookie inviati ({len(inviati)}): {', '.join(inviati) or '(nessuno)'}")
         return 0
     except BdmAuthError as exc:
         print(f"Sessione SCADUTA: {exc}")
+        # Diagnosi: se i cookie partiti sono pochi o manca il JWT, il problema non e'
+        # la scadenza ma la selezione dei cookie (forzabile con BDM_COOKIE_NAMES).
+        inviati = cfg.data_cookie_names()
+        print(f"Cookie inviati ({len(inviati)}): {', '.join(inviati) or '(nessuno)'}")
+        if not any("jwt" in n.lower() for n in inviati):
+            print("ATTENZIONE: tra i cookie inviati non c'e' un JWT: rifai il login.")
         return 1
     except BdmError as exc:
         print(f"Errore: {exc}")

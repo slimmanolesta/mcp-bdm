@@ -145,3 +145,69 @@ def test_le_virgolette_non_possono_iniettare_criteri():
 
     q = endpoints.build_q_expression(testo='foo" OR ufficio:"X')
     assert q.count('"') % 2 == 0
+
+
+# --- selezione dei cookie ----------------------------------------------------
+
+def _jar():
+    """Jar realistico, modellato su una cattura vera + un cookie NUOVO del
+    bilanciatore (il caso che faceva morire la vecchia allowlist)."""
+    return [
+        {"name": "jwt_bdm_frontoffice", "value": "x", "domain": ".bdp.giustizia.it"},
+        {"name": "cookiesession1", "value": "x", "domain": "bdp.giustizia.it"},
+        {"name": "cookie_accepted", "value": "x", "domain": "bdp.giustizia.it"},
+        {"name": "fd2d18de29089600045cac71baad0355", "value": "x", "domain": "bdp.giustizia.it"},
+        {"name": "13f03f665dc4ad927d5708f00b44987b", "value": "x", "domain": "bdp.giustizia.it"},
+        {"name": "a1b2c3d4e5f60718293a4b5c6d7e8f90", "value": "x", "domain": "bdp.giustizia.it"},
+        {"name": "x-ms-cpim-sso:b2c_0", "value": "x", "domain": ".auth03.giustizia.it"},
+        {"name": "x-ms-cpim-csrf", "value": "x", "domain": ".auth03.giustizia.it"},
+        {"name": "_pk_id.abc.123", "value": "x", "domain": "auth03.giustizia.it"},
+        {"name": "estraneo", "value": "x", "domain": "altro-sito.it"},
+    ]
+
+
+def test_nessuna_regressione_rispetto_alla_vecchia_allowlist():
+    """La denylist deve mandare ALMENO quel che mandava l'allowlist: e' la garanzia
+    che il cambio non rompa un'autenticazione che funzionava."""
+    inviati = set(cfg.BdmConfig(cookies=_jar()).data_cookie_names())
+    presenti = {c["name"] for c in _jar()} & cfg.LEGACY_ALLOWLIST
+    assert presenti <= inviati
+
+
+def test_manda_anche_i_cookie_nuovi_del_dominio_dati():
+    """BUG: l'allowlist veniva da UNA cattura. Un cookie aggiunto o rinominato dal
+    sito veniva scartato in silenzio -> 401 subito dopo un login riuscito, in loop,
+    non diagnosticabile. Il cookie nuovo deve partire."""
+    inviati = cfg.BdmConfig(cookies=_jar()).data_cookie_names()
+    assert "a1b2c3d4e5f60718293a4b5c6d7e8f90" in inviati
+
+
+@pytest.mark.parametrize("scartato", [
+    "x-ms-cpim-sso:b2c_0",   # nome malformato: romperebbe l'header
+    "x-ms-cpim-csrf",        # roba del portale di autenticazione
+    "_pk_id.abc.123",        # dominio diverso (auth03, non bdp)
+    "estraneo",              # tutt'altro sito
+])
+def test_scarta_cio_che_non_va_ai_data_endpoint(scartato):
+    assert scartato not in cfg.BdmConfig(cookies=_jar()).data_cookie_names()
+
+
+def test_l_header_non_contiene_mai_nomi_malformati():
+    header = cfg.BdmConfig(cookies=_jar()).cookie_header()
+    assert "x-ms-cpim" not in header
+
+
+def test_override_di_emergenza(monkeypatch):
+    """Via di fuga se un giorno servisse forzare la selezione a mano."""
+    monkeypatch.setenv("BDM_COOKIE_NAMES", "jwt_bdm_frontoffice")
+    assert cfg.BdmConfig(cookies=_jar()).data_cookie_names() == ["jwt_bdm_frontoffice"]
+
+
+def test_bdm_home_esplicito_non_migra_i_dati(monkeypatch, tmp_path):
+    """BUG (colpito dal vivo): la migrazione scattava anche con BDM_HOME impostato,
+    e una cartella temporanea di prova si portava via la sessione vera."""
+    monkeypatch.setenv("BDM_HOME", str(tmp_path))
+    legacy = cfg._legacy_app_dir() / "config.json"
+    esisteva = legacy.exists()
+    cfg.config_path()
+    assert legacy.exists() == esisteva

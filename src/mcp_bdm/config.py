@@ -36,12 +36,23 @@ API_BASE = "https://bdp.giustizia.it/api/bdm/frontoffice"
 LOGIN_URL = "https://bdp.giustizia.it/login"
 # Macro-area unica della BDM (giurisprudenza civile di merito).
 AREA_DEFAULT = "CIVILE"
-# I soli cookie che il browser manda ai data-endpoint (esclude i cookie B2C/SSO
-# di auth03.giustizia.it, inutili qui e col nome malformato che sporca l'header).
-DATA_COOKIE_NAMES = frozenset({
-    "jwt_bdm_frontoffice", "cookiesession1", "cookie_accepted",
-    "fd2d18de29089600045cac71baad0355", "13f03f665dc4ad927d5708f00b44987b",
-})
+# Cookie da NON mandare ai data-endpoint. E' una DENYLIST, e la scelta e'
+# deliberata: la versione precedente era un allowlist ricavato da una singola
+# cattura (conteneva due nomi-hash, tipici dei bilanciatori). Bastava che il sito
+# aggiungesse o rinominasse un cookie di sessione perche' il replay fallisse con un
+# 401 SUBITO DOPO UN LOGIN RIUSCITO: l'utente rifaceva il login, il login diceva
+# "sessione catturata", e il ciclo ripartiva - senza nulla, in nessun output, che
+# nominasse i cookie. Non diagnosticabile, e senza alcuna leva per l'utente.
+#
+# Il problema vero da evitare e' un altro, ed e' ristretto: i cookie B2C/SSO del
+# portale di autenticazione hanno nomi malformati (contengono ':') che sporcano
+# l'header Cookie e rompono il parsing lato server. Quelli si scartano per FORMA,
+# non per elenco.
+DENY_COOKIE_SUBSTRINGS = (":", "=", " ")
+# Prefissi dei cookie del portale B2C: servono a ottenere la sessione, non a usarla.
+DENY_COOKIE_PREFIXES = ("x-ms-cpim", "x-ms-gateway", ".AspNet")
+# Dominio dei data-endpoint: mandiamo i cookie di questo dominio (e dei suoi padri).
+DATA_COOKIE_DOMAIN = "bdp.giustizia.it"
 
 # UA di un Chrome reale: i data-endpoint vogliono una richiesta "da browser"
 # (Sec-Fetch-Site: same-origin + UA credibile), non un client generico.
@@ -114,7 +125,15 @@ def harden_file(path: Path) -> None:
 def _migrate_legacy(name: str, dest: Path) -> None:
     """Sposta un file dati dalla vecchia collocazione (accanto al codice) a quella
     nuova, una volta sola. Silenzioso: qui non si stampa nulla, perche' questo
-    codice gira anche dentro il server MCP (stdout = canale JSON-RPC)."""
+    codice gira anche dentro il server MCP (stdout = canale JSON-RPC).
+
+    NON si migra quando BDM_HOME e' impostato: un override esplicito significa "usa
+    esattamente questa cartella", non "portaci dentro i dati che trovi altrove".
+    Senza questa guardia, un BDM_HOME temporaneo (test, prove, script) si porterebbe
+    via la sessione vera dell'utente.
+    """
+    if os.environ.get("BDM_HOME"):
+        return
     if dest.exists():
         return
     legacy = _legacy_app_dir() / name
@@ -162,19 +181,61 @@ class BdmConfig:
         if not self.is_authenticated:
             raise BdmAuthError("Sessione BDM assente. Esegui prima: bdm login")
 
+    def data_cookie_names(self) -> list[str]:
+        """Nomi dei cookie che verranno mandati ai data-endpoint.
+
+        Utile per diagnosticare: se il replay fallisce, sapere QUALI cookie sono
+        partiti e' la differenza tra un problema risolvibile e un vicolo cieco.
+        Restituisce solo i NOMI: i valori sono segreti.
+        """
+        override = os.environ.get("BDM_COOKIE_NAMES")
+        if override:
+            voluti = {n.strip() for n in override.split(",") if n.strip()}
+            return [c.get("name") for c in self.cookies if c.get("name") in voluti]
+        fuori = []
+        for c in self.cookies:
+            nome = c.get("name") or ""
+            if not nome or c.get("value") is None:
+                continue
+            if any(s in nome for s in DENY_COOKIE_SUBSTRINGS):
+                continue  # nome malformato: romperebbe l'header
+            if any(nome.startswith(p) for p in DENY_COOKIE_PREFIXES):
+                continue  # roba del portale di autenticazione, non dei dati
+            dominio = (c.get("domain") or "").lstrip(".")
+            if dominio and not (DATA_COOKIE_DOMAIN == dominio
+                                or DATA_COOKIE_DOMAIN.endswith("." + dominio)):
+                continue  # cookie di un altro host
+            fuori.append(nome)
+        return fuori
+
     def cookie_header(self, data_only: bool = True) -> str:
-        """Serializza il jar in un header Cookie per httpx. Di default tiene solo i
-        cookie che il browser manda ai data-endpoint (DATA_COOKIE_NAMES): esclude i
-        cookie B2C/SSO col nome malformato (':') che rompono il parsing lato server."""
+        """Serializza il jar in un header Cookie per httpx.
+
+        Di default manda i cookie del dominio dei dati, scartando per FORMA quelli
+        del portale B2C (nomi malformati col ':'). Override con BDM_COOKIE_NAMES
+        (elenco separato da virgole) se un giorno servisse forzare la selezione.
+        """
+        if not data_only:
+            ammessi = None
+        else:
+            ammessi = set(self.data_cookie_names())
         return "; ".join(
             f"{c.get('name')}={c.get('value')}"
             for c in self.cookies
             if c.get("name") and c.get("value") is not None
-            and (not data_only or c.get("name") in DATA_COOKIE_NAMES)
+            and (ammessi is None or c.get("name") in ammessi)
         )
 
     def endpoint(self, path: str) -> str:
         return self.api_base.rstrip("/") + "/" + path.lstrip("/")
+
+
+# Nomi che la vecchia allowlist ammetteva. Non serve piu' al codice: lo teniamo come
+# riferimento per il test di non-regressione (la denylist deve mandare almeno questi).
+LEGACY_ALLOWLIST = frozenset({
+    "jwt_bdm_frontoffice", "cookiesession1", "cookie_accepted",
+    "fd2d18de29089600045cac71baad0355", "13f03f665dc4ad927d5708f00b44987b",
+})
 
 
 def _read_json(path: Path) -> dict[str, Any]:
