@@ -6,6 +6,7 @@ Connettore casalingo per la **Banca Dati di Merito** pubblica del Ministero
 > **Skill inclusa.** Questo repo contiene la skill Claude **manolesta**
 > (in `skill/manolesta/`), che pilota il connettore `bdm` per cercare e
 > recuperare provvedimenti dalla BDM.
+
 Backend **REST + GraphQL** (`/api/bdm/frontoffice/...`), autenticazione con **JWT
 di sessione in cookie httpOnly**, depositato dopo il login **CNS** (chiavetta +
 PIN) sul portale B2C del Ministero. La chiavetta serve solo a *ottenere* la
@@ -56,7 +57,6 @@ Nucleo CLI verificato **end-to-end in rete** (`check`, `search`, `get`, `estremi
 - **Tassonomie**: `GET materia?area=CIVILE`, `ufficio`, `giudice`, ecc.
 - **Durata sessione ~120 min**: captured_at→exp = 2 ore. Il replay regge per tutta
   la finestra; a scadenza serve il re-login CNS (`Rinnova-BDM.bat`).
-
 - **Selezione dei cookie = denylist.** Si mandano i cookie del dominio dei dati,
   scartando per *forma* quelli del portale B2C (nomi malformati col `:`, che
   romperebbero l'header) e i domini estranei. In precedenza era un *allowlist*
@@ -97,10 +97,16 @@ La sessione vive in `config.json`, creato da `login`, sotto `%LOCALAPPDATA%\mano
 (override con `BDM_HOME`) — **fuori dall'albero del codice**: il codice puo' stare in
 una cartella condivisa, il JWT no. Il file viene ristretto al solo utente corrente
 via `icacls`; su Windows `chmod(0o600)` **non** basta, perche' tocca solo
-l'attributo di sola lettura e non le ACL. Contiene:
-il **cookie jar** catturato (col JWT httpOnly), `exp`, l'utente (per display). Il
-client manda ai data-endpoint solo i cookie utili (`DATA_COOKIE_NAMES`), non i
-cookie B2C/SSO. Override via `BDM_API_BASE`, `BDM_HOME`, ecc.; profilo di login via
+l'attributo di sola lettura e non le ACL.
+
+Contiene il **cookie jar** catturato (col JWT httpOnly), `exp` e l'utente (solo per
+visualizzazione). Ai data-endpoint il client manda i cookie del dominio dei dati,
+scartando quelli del portale B2C (vedi *Selezione dei cookie* sopra).
+
+Le preferenze di flusso dell'utente (dove salvare, come nominare) vivono a parte, in
+`manolesta.workflow.json`: non sono segreti e non stanno nel file di sessione.
+
+Override via `BDM_API_BASE`, `BDM_HOME`, `BDM_COOKIE_NAMES`; profilo di login via
 `BDM_LOGIN_PROFILE`, debug con `BDM_LOGIN_DEBUG=1`. Parti da `config.example.json`.
 
 ## Dipendenze runtime
