@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -54,12 +55,25 @@ DENY_COOKIE_PREFIXES = ("x-ms-cpim", "x-ms-gateway", ".AspNet")
 # Dominio dei data-endpoint: mandiamo i cookie di questo dominio (e dei suoi padri).
 DATA_COOKIE_DOMAIN = "bdp.giustizia.it"
 
-# UA di un Chrome reale: i data-endpoint vogliono una richiesta "da browser"
-# (Sec-Fetch-Site: same-origin + UA credibile), non un client generico.
+# UA di ripiego, usato solo se il login non ha registrato quello del browser.
+# ATTENZIONE: il server lega la sessione allo User-Agent del login (verificato
+# dal vivo 23.9.2026), quindi il replay deve usare lo UA CATTURATO al login
+# (`user_agent` in config.json); questo valore da solo da' 401.
 _DEFAULT_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
 )
+
+
+def sec_ch_ua(user_agent: str) -> str:
+    """Header `sec-ch-ua` coerente con lo UA (stessa versione major).
+
+    Non e' richiesto dal server (verificato), ma un Chrome che dichiara nello UA una
+    versione e nei client hints un'altra e' una richiesta incoerente."""
+    m = re.search(r"Chrome/(\d+)", user_agent or "")
+    major = m.group(1) if m else "150"
+    brand = "Microsoft Edge" if "Edg/" in (user_agent or "") else "Google Chrome"
+    return f'"{brand}";v="{major}", "Not_A Brand";v="8", "Chromium";v="{major}"'
 
 
 def ssl_context():
@@ -292,8 +306,12 @@ def save_session(
         data["captured_at"] = captured_at
     if user:
         data["user"] = user
+    # Lo UA e' parte della sessione (il server la lega allo User-Agent del login):
+    # mai lasciare quello di una sessione precedente accanto ai cookie nuovi.
     if user_agent:
         data["user_agent"] = user_agent
+    else:
+        data.pop("user_agent", None)
     data.setdefault("api_base", API_BASE)
     data.setdefault("app_origin", APP_ORIGIN)
     path.parent.mkdir(parents=True, exist_ok=True)

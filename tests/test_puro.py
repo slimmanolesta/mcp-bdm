@@ -237,3 +237,32 @@ def test_bdm_home_esplicito_non_migra_i_dati(monkeypatch, tmp_path):
     esisteva = legacy.exists()
     cfg.config_path()
     assert legacy.exists() == esisteva
+
+
+# --- User-Agent: parte della sessione --------------------------------------------
+# VERIFICATO DAL VIVO (23.9.2026): il server lega la sessione allo UA del login.
+# Stessi cookie, UA "Chrome/150" cablato mentre Chrome era alla 153 -> 401 su tutti
+# i data-endpoint (user/current invece 200). Col solo UA reale -> 200.
+
+def test_la_nuova_sessione_non_eredita_lo_ua_della_vecchia(monkeypatch, tmp_path):
+    monkeypatch.setenv("BDM_HOME", str(tmp_path))
+    cfg.save_session(cookies=_jar(), user_agent="Mozilla/5.0 ... Chrome/150.0.0.0 Safari/537.36")
+    cfg.save_session(cookies=_jar())  # login che non ha registrato lo UA
+    assert cfg.load_config().user_agent == cfg._DEFAULT_UA
+
+
+def test_lo_ua_catturato_arriva_al_replay(monkeypatch, tmp_path):
+    monkeypatch.setenv("BDM_HOME", str(tmp_path))
+    ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"
+    cfg.save_session(cookies=_jar(), user_agent=ua)
+    assert cfg.load_config().user_agent == ua
+
+
+@pytest.mark.parametrize("ua, atteso", [
+    ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+     '"Google Chrome";v="153", "Not_A Brand";v="8", "Chromium";v="153"'),
+    ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0",
+     '"Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153"'),
+])
+def test_i_client_hints_seguono_lo_ua(ua, atteso):
+    assert cfg.sec_ch_ua(ua) == atteso

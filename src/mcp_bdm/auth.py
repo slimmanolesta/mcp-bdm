@@ -217,6 +217,15 @@ def capture_session(timeout_s: float = 300) -> dict:
                 "vuoto). Hai completato l'accesso con la CNS?"
             )
 
+        # Lo UA VERO del browser del login: il server lega la sessione allo
+        # User-Agent (verificato dal vivo 23.9.2026: stessi cookie, UA diverso ->
+        # 401 sui data-endpoint, mentre user/current resta 200). Un UA cablato
+        # smette di funzionare al primo aggiornamento di Chrome.
+        try:
+            captured["ua"] = page.evaluate("navigator.userAgent") or captured["ua"]
+        except Exception:
+            pass
+
         # Fotografa il jar: tutti i cookie del dominio bdp.giustizia.it (incluso
         # il JWT httpOnly). Playwright espone anche gli httpOnly.
         try:

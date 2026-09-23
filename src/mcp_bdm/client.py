@@ -4,7 +4,8 @@ Rigioca server-side la sessione catturata al login (cookie JWT httpOnly) via htt
 Contratto VERIFICATO dal vivo (14.7.2026). Dettagli non ovvi:
 
 - TLS via trust store di Windows (`truststore`): certifi non ha la CA della PA.
-- I data-endpoint vogliono una richiesta "da browser": UA Chrome reale + header
+- I data-endpoint vogliono una richiesta "da browser": lo UA DEL LOGIN (il server
+  lega la sessione allo User-Agent: UA diverso -> 401, verificato 23.9.2026) + header
   `Sec-Fetch-*`, `Origin` solo sui POST (mai sui GET same-origin), e i soli cookie
   dati (vedi `BdmConfig.data_cookie_names`). Con la sessione scaduta rispondono 401 (corpo vuoto o
   "jwt non presente"); ci mappiamo BdmAuthError.
@@ -20,7 +21,7 @@ from typing import Any
 import httpx
 
 from . import endpoints
-from .config import AREA_DEFAULT, BdmConfig, ssl_context
+from .config import AREA_DEFAULT, BdmConfig, sec_ch_ua, ssl_context
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -48,7 +49,7 @@ class BdmClient:
                 "Sec-Fetch-Mode": "cors",
                 "Sec-Fetch-Site": "same-origin",
                 "User-Agent": self._config.user_agent,
-                "sec-ch-ua": '"Chromium";v="150", "Google Chrome";v="150", "Not;A=Brand";v="8"',
+                "sec-ch-ua": sec_ch_ua(self._config.user_agent),
                 "sec-ch-ua-mobile": "?0",
                 "sec-ch-ua-platform": '"Windows"',
             }
